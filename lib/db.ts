@@ -26,12 +26,12 @@ export type AuthToken = Readonly<{
 }>;
 
 export type GetObjectOptions = Readonly<{
-  owner: string;
+  owner: User;
   id: string;
 }>;
 
 export type GetObjectsByOwnerOptions = Readonly<{
-  owner: string;
+  owner: User;
   since: number;
 }>;
 
@@ -137,24 +137,38 @@ export class Database {
     return this.getUserStmt.get({ username });
   }
 
-  public async saveObject(
-    obj: Omit<StoredObject, 'modifiedAt'>,
-  ): Promise<void> {
-    this.saveObjectStmt.run({ ...obj, now: Date.now() });
+  public async saveObjects(
+    owner: User,
+    objects: ReadonlyArray<Omit<StoredObject, 'owner' | 'modifiedAt'>>,
+  ): Promise<number> {
+    const now = Date.now();
+
+    let maxModifiedAt = now;
+    this.db.transaction(() => {
+      for (const obj of objects) {
+        const {
+          modifiedAt,
+        } = this.saveObjectStmt.get({ ...obj, owner: owner.username, now });
+
+        maxModifiedAt = Math.max(maxModifiedAt, modifiedAt);
+      }
+    })();
+
+    return maxModifiedAt;
   }
 
   public async getObject({
     owner,
     id,
   }: GetObjectOptions): Promise<StoredObject | undefined> {
-    return this.getObjectStmt.get({ owner, id });
+    return this.getObjectStmt.get({ owner: owner.username, id });
   }
 
   public async getObjectsByOwner({
     owner,
     since,
   }: GetObjectsByOwnerOptions): Promise<Array<StoredObject>> {
-    return this.getObjectsByOwnerStmt.all({ owner, since });
+    return this.getObjectsByOwnerStmt.all({ owner: owner.username, since });
   }
 
   public async saveAuthToken(token: AuthToken): Promise<void> {

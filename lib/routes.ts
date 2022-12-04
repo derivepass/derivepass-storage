@@ -53,27 +53,35 @@ export default async (fastify: FastifyInstance): Promise<void> => {
         }),
       },
     },
-  }, async (request, reply) => {
+  }, async (request) => {
     const objects = await typed.db.getObjectsByOwner({
-      owner: request.user.username,
+      owner: request.user,
       since: request.query.since ?? 0,
     });
 
     return { objects };
   });
 
-  typed.put('/objects/:id', {
+  typed.put('/objects', {
     schema: {
-      params: Type.Object({ id: Type.String() }),
-      body: Type.Unknown(),
+      body: Type.Array(
+        Type.Object({ id: Type.String(), data: Type.Unknown() })
+      ),
+      response: {
+        201: Type.Object({ modifiedAt: Type.Number() }),
+      },
     },
   }, async (request, reply) => {
-    await typed.db.saveObject({
-      owner: request.user.username,
-      id: request.params.id,
-      data: JSON.stringify(request.body),
-    });
+    const modifiedAt =
+      await typed.db.saveObjects(request.user, request.body.map(x => {
+        return {
+          ...x,
+          data: JSON.stringify(x.data),
+        };
+      }));
 
-    reply.status(201).send();
+    reply.status(201).send({
+      modifiedAt,
+    });
   });
 };
