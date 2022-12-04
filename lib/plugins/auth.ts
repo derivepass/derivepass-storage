@@ -11,7 +11,7 @@ declare module 'fastify' {
 }
 
 export function encodeAuthToken({ id, token }: AuthToken): string {
-  return `${id}:${token.toString('base64')}`;
+  return `${id.toString('base64')}:${token.toString('base64')}`;
 }
 
 async function auth(fastify: FastifyInstance): Promise<void> {
