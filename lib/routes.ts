@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import FastifyCORS from '@fastify/cors';
 
 import { createAuthToken } from './crypto.js';
-import auth, { encodeAuthToken } from './plugins/auth.js';
+import auth, { encodeAuthToken, decodeAuthToken } from './plugins/auth.js';
 
 export default async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(FastifyCORS, {
@@ -18,12 +18,11 @@ export default async (fastify: FastifyInstance): Promise<void> => {
   });
 
   fastify.delete<{
-    Body: { id: string }
+    Body: { token: string }
   }>('/user/token', async (request, reply) => {
-    await fastify.db.deleteAuthToken(
-      request.user,
-      Buffer.from(request.body.id, 'base64'),
-    );
+    const token = decodeAuthToken(request.body.token);
+
+    await fastify.db.deleteAuthToken(request.user, token.id);
 
     reply.status(202).send();
   });

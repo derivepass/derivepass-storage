@@ -14,6 +14,16 @@ export function encodeAuthToken({ id, token }: AuthToken): string {
   return `${id.toString('base64')}:${token.toString('base64')}`;
 }
 
+export type DecodedAuthToken = Readonly<{
+  id: Buffer;
+  token: Buffer;
+}>;
+
+export function decodeAuthToken(str: string): DecodedAuthToken {
+  const [id, token] = str.split(':', 2).map(x => Buffer.from(x, 'base64'));
+  return { id, token };
+}
+
 async function auth(fastify: FastifyInstance): Promise<void> {
   fastify.addHook<{
     Headers: { authorization: 'string' };
@@ -42,10 +52,8 @@ async function auth(fastify: FastifyInstance): Promise<void> {
 
         isValid = await checkPasswordHash(user, password);
       } else if (type.toLowerCase() === 'bearer') {
-        const [tokenId, tokenData] = data.split(':', 2);
-        const token = await fastify.db.getAuthToken(
-          Buffer.from(tokenId, 'base64'),
-        );
+        const { id: tokenId, token: tokenData } = decodeAuthToken(data);
+        const token = await fastify.db.getAuthToken(tokenId);
         if (!token) {
           return reply.forbidden('Incorrect token');
         }
@@ -55,7 +63,7 @@ async function auth(fastify: FastifyInstance): Promise<void> {
           return reply.forbidden('Incorrect password');
         }
 
-        isValid = await checkAuthToken(token, Buffer.from(tokenData, 'base64'));
+        isValid = await checkAuthToken(token, tokenData);
       } else {
         fastify.assert(400, 'Invalid authorization type');
         return;
