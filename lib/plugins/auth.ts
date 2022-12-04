@@ -25,13 +25,13 @@ async function auth(fastify: FastifyInstance): Promise<void> {
       'Missing Authorization header',
     );
 
-    const [type, data] = authorization.toLowerCase().split(/\s+/g, 2);
+    const [type, data] = authorization.split(/\s+/g, 2);
 
     let isValid = false;
     let user: User | undefined;
 
     try {
-      if (type === 'basic') {
+      if (type.toLowerCase() === 'basic') {
         const [username, password] =
           Buffer.from(data, 'base64').toString().split(':', 2);
 
@@ -41,7 +41,7 @@ async function auth(fastify: FastifyInstance): Promise<void> {
         }
 
         isValid = await checkPasswordHash(user, password);
-      } else if (type === 'bearer') {
+      } else if (type.toLowerCase() === 'bearer') {
         const [tokenId, tokenData] = data.split(':', 2);
         const token = await fastify.db.getAuthToken(
           Buffer.from(tokenId, 'base64'),

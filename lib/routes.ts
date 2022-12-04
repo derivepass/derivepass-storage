@@ -1,9 +1,13 @@
 import type { FastifyInstance } from 'fastify';
+import FastifyCORS from '@fastify/cors';
 
 import { createAuthToken } from './crypto.js';
 import auth, { encodeAuthToken } from './plugins/auth.js';
 
 export default async (fastify: FastifyInstance): Promise<void> => {
+  fastify.register(FastifyCORS, {
+    origin: ['derivepass.com', 'www.derivepass.com'],
+  });
   fastify.register(auth);
 
   fastify.put('/user/token', async (request, reply) => {

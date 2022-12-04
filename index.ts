@@ -1,7 +1,6 @@
 import Fastify from 'fastify';
 import FastifySensible from '@fastify/sensible';
 import FastifyRateLimit from '@fastify/rate-limit';
-import FastifyCORS from '@fastify/cors';
 
 import { Database } from './lib/db.js';
 import { HOUR } from './lib/constants.js';
@@ -47,9 +46,6 @@ fastify.register(FastifyRateLimit, {
 
     return request.ip;
   }
-});
-fastify.register(FastifyCORS, {
-  origin: ['derivepass.com', 'www.derivepass.com'],
 });
 fastify.register(routes);
 
