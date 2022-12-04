@@ -1,6 +1,10 @@
 import { DAY } from './constants.js';
 
-export const DB_PATH = 'db.sqlite';
+export const PORT = process.env.PORT ?
+  parseInt(process.env.PORT, 10) :
+  8000;
+
+export const DB_PATH = process.env.DB_PATH || 'db.sqlite';
 
 export const PBKDF2_ITERATIONS = 10000;
 
