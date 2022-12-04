@@ -1,44 +1,74 @@
 import type { FastifyInstance } from 'fastify';
 import FastifyCORS from '@fastify/cors';
+import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
+import { Type } from '@sinclair/typebox';
 
 import { createAuthToken } from './crypto.js';
 import auth, { encodeAuthToken, decodeAuthToken } from './plugins/auth.js';
 
 export default async (fastify: FastifyInstance): Promise<void> => {
-  fastify.register(FastifyCORS, {
+  const typed = fastify.withTypeProvider<TypeBoxTypeProvider>();
+
+  typed.register(FastifyCORS, {
     origin: true,
   });
-  fastify.register(auth);
+  typed.register(auth);
 
-  fastify.put('/user/token', async (request, reply) => {
+  typed.put('/user/token', {
+    schema: {
+      response: {
+        200: Type.Object({ token: Type.String() }),
+      },
+    },
+  }, async (request, reply) => {
     const token = createAuthToken(request.user);
-    await fastify.db.saveAuthToken(token);
+    await typed.db.saveAuthToken(token);
 
     reply.status(200).send({ token: encodeAuthToken(token) });
   });
 
-  fastify.delete<{
-    Body: { token: string }
-  }>('/user/token', async (request, reply) => {
+  typed.delete('/user/token', {
+    schema: {
+      body: Type.Object({ token: Type.String() }),
+    },
+  }, async (request, reply) => {
     const token = decodeAuthToken(request.body.token);
 
-    await fastify.db.deleteAuthToken(request.user, token.id);
+    await typed.db.deleteAuthToken(request.user, token.id);
 
     reply.status(202).send();
   });
 
   // TODO(indutny): pagination, eventually
-  fastify.get('/objects', async (request) => {
-    const objects = await fastify.db.getObjectsByOwner(request.user.username);
+  typed.get('/objects', {
+    schema: {
+      querystring: Type.Object({ since: Type.Optional(Type.Number()) }),
+      response: {
+        200: Type.Object({
+          objects: Type.Array(Type.Object({
+            id: Type.String(),
+            data: Type.String(),
+            modifiedAt: Type.Number(),
+          })),
+        }),
+      },
+    },
+  }, async (request, reply) => {
+    const objects = await typed.db.getObjectsByOwner({
+      owner: request.user.username,
+      since: request.query.since ?? 0,
+    });
 
-    return objects.map(({ id, data }) => ({ id, data }));
+    return { objects };
   });
 
-  fastify.put<{
-    Params: { id: string }
-    Body: unknown;
-  }>('/objects/:id', async (request, reply) => {
-    await fastify.db.saveObject({
+  typed.put('/objects/:id', {
+    schema: {
+      params: Type.Object({ id: Type.String() }),
+      body: Type.Unknown(),
+    },
+  }, async (request, reply) => {
+    await typed.db.saveObject({
       owner: request.user.username,
       id: request.params.id,
       data: JSON.stringify(request.body),

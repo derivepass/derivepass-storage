@@ -15,6 +15,7 @@ export type StoredObject = Readonly<{
   owner: string;
   id: string;
   data: string;
+  modifiedAt: number;
 }>;
 
 export type AuthToken = Readonly<{
@@ -27,6 +28,11 @@ export type AuthToken = Readonly<{
 export type GetObjectOptions = Readonly<{
   owner: string;
   id: string;
+}>;
+
+export type GetObjectsByOwnerOptions = Readonly<{
+  owner: string;
+  since: number;
 }>;
 
 export class Database {
@@ -72,9 +78,21 @@ export class Database {
 
     this.saveObjectStmt = db.prepare(`
       INSERT OR REPLACE INTO objects
-      (owner, id, data)
+      (owner, id, data, modifiedAt)
       VALUES
-      ($owner, $id, $data)
+      (
+        $owner,
+        $id,
+        $data,
+        (SELECT MAX(
+          $now,
+          IFNULL(
+            1 + (SELECT MAX(modifiedAt) FROM objects WHERE owner IS $owner),
+            0
+          )
+        ))
+      )
+      RETURNING modifiedAt;
     `);
 
     this.getObjectStmt = db.prepare(`
@@ -82,7 +100,9 @@ export class Database {
     `);
 
     this.getObjectsByOwnerStmt = db.prepare(`
-      SELECT * FROM objects WHERE owner IS $owner
+      SELECT * FROM objects
+      WHERE owner IS $owner AND modifiedAt > $since
+      ORDER BY modifiedAt ASC
     `);
 
     this.saveAuthTokenStmt = db.prepare(`
@@ -117,8 +137,10 @@ export class Database {
     return this.getUserStmt.get({ username });
   }
 
-  public async saveObject(obj: StoredObject): Promise<void> {
-    this.saveObjectStmt.run(obj);
+  public async saveObject(
+    obj: Omit<StoredObject, 'modifiedAt'>,
+  ): Promise<void> {
+    this.saveObjectStmt.run({ ...obj, now: Date.now() });
   }
 
   public async getObject({
@@ -128,10 +150,11 @@ export class Database {
     return this.getObjectStmt.get({ owner, id });
   }
 
-  public async getObjectsByOwner(
-    owner: string,
-  ): Promise<ReadonlyArray<StoredObject>> {
-    return this.getObjectsByOwnerStmt.all({ owner });
+  public async getObjectsByOwner({
+    owner,
+    since,
+  }: GetObjectsByOwnerOptions): Promise<Array<StoredObject>> {
+    return this.getObjectsByOwnerStmt.all({ owner, since });
   }
 
   public async saveAuthToken(token: AuthToken): Promise<void> {
@@ -169,11 +192,15 @@ export class Database {
           owner STRING NON NULL REFERENCES users(username) ON DELETE CASCADE,
           id STRING NON NULL,
           data STRING NON NULL,
+          modifiedAt INTEGER NON NULL,
 
           PRIMARY KEY (owner, id)
         );
 
         CREATE INDEX object_by_owner ON objects (owner);
+
+        CREATE INDEX object_by_owner_and_modifiedAt
+        ON objects (owner, modifiedAt ASC);
 
         CREATE TABLE authTokens (
           id BLOB NON NULL PRIMARY KEY,
