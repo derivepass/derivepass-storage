@@ -128,7 +128,7 @@ export class Database {
           PRIMARY KEY (owner, id)
         );
 
-        CREATE INDEX object_by_owner (owner);
+        CREATE INDEX object_by_owner ON objects (owner);
       `);
     },
   ];
