@@ -48,7 +48,9 @@ fastify.register(FastifyRateLimit, {
     return request.ip;
   }
 });
-fastify.register(FastifyCORS);
+fastify.register(FastifyCORS, {
+  origin: ['derivepass.com', 'www.derivepass.com'],
+});
 fastify.register(routes);
 
 await fastify.listen({ port: 8000, host: '127.0.0.1' });
