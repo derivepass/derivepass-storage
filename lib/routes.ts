@@ -68,19 +68,22 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
   typed.put('/objects', {
     schema: {
-      body: Type.Array(
-        Type.Object({
-          id: Type.String(),
-          data: Type.Record(Type.String(), Type.Unknown()),
-        })
-      ),
+      body: Type.Object({
+        objects: Type.Array(
+          Type.Object({
+            id: Type.String(),
+            data: Type.Record(Type.String(), Type.Unknown()),
+          })
+        )
+      }),
       response: {
         201: Type.Object({ modifiedAt: Type.Number() }),
       },
     },
   }, async (request, reply) => {
+    const { objects } = request.body;
     const modifiedAt =
-      await typed.db.saveObjects(request.user, request.body.map(x => {
+      await typed.db.saveObjects(request.user, objects.map(x => {
         return {
           ...x,
           data: JSON.stringify(x.data),
