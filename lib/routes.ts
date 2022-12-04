@@ -14,7 +14,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
     const token = createAuthToken(request.user);
     await fastify.db.saveAuthToken(token);
 
-    reply.status(200).send(encodeAuthToken(token));
+    reply.status(200).send({ token: encodeAuthToken(token) });
   });
 
   fastify.delete<{
