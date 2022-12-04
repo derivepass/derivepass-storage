@@ -21,6 +21,10 @@ export default async (fastify: FastifyInstance): Promise<void> => {
       },
     },
   }, async (request, reply) => {
+    if (request.token) {
+      reply.status(403).send();
+    }
+
     const token = createAuthToken(request.user);
     await typed.db.saveAuthToken(token);
 

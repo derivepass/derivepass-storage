@@ -113,7 +113,7 @@ export class Database {
     `);
 
     this.getAuthTokenStmt = db.prepare(`
-      SELECT * FROM authTokens WHERE id IS $id AND expiresAt < $now
+      SELECT * FROM authTokens WHERE id IS $id AND expiresAt > $now
     `);
 
     this.deleteAuthTokenStmt = db.prepare(`
@@ -121,7 +121,7 @@ export class Database {
     `);
 
     this.deleteStaleAuthTokensStmt = db.prepare(`
-      DELETE FROM authTokens WHERE expiresAt < $now
+      DELETE FROM authTokens WHERE expiresAt <= $now
     `);
   }
 

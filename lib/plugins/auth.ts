@@ -7,6 +7,7 @@ import { type User, type AuthToken } from '../db.js';
 declare module 'fastify' {
   interface FastifyRequest {
     user: User;
+    token?: AuthToken;
   }
 }
 
@@ -39,6 +40,7 @@ async function auth(fastify: FastifyInstance): Promise<void> {
 
     let isValid = false;
     let user: User | undefined;
+    let token: AuthToken | undefined;
 
     try {
       if (type.toLowerCase() === 'basic') {
@@ -53,7 +55,7 @@ async function auth(fastify: FastifyInstance): Promise<void> {
         isValid = await checkPasswordHash(user, password);
       } else if (type.toLowerCase() === 'bearer') {
         const { id: tokenId, token: tokenData } = decodeAuthToken(data);
-        const token = await fastify.db.getAuthToken(tokenId);
+        token = await fastify.db.getAuthToken(tokenId);
         if (!token) {
           return reply.forbidden('Incorrect token');
         }
@@ -77,6 +79,7 @@ async function auth(fastify: FastifyInstance): Promise<void> {
     }
 
     request.user = user;
+    request.token = token;
     if (!request.user) {
       return reply.forbidden('Incorrect password');
     }
