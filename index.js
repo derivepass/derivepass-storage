@@ -17,7 +17,15 @@ process.on('SIGINT', () => {
 fastify
     .decorate('db', db);
 fastify.register(FastifySensible);
-fastify.register(FastifyRateLimit);
+fastify.register(FastifyRateLimit, {
+    async keyGenerator(request) {
+        const forwardedFor = request.headers['x-forwarded-for'];
+        if (forwardedFor) {
+            return String(forwardedFor);
+        }
+        return request.ip;
+    }
+});
 fastify.register(FastifyCORS);
 fastify.register(routes);
 await fastify.listen({ port: 8000, host: '127.0.0.1' });
