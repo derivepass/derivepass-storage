@@ -6,7 +6,7 @@ import auth, { encodeAuthToken } from './plugins/auth.js';
 
 export default async (fastify: FastifyInstance): Promise<void> => {
   fastify.register(FastifyCORS, {
-    origin: ['derivepass.com', 'www.derivepass.com'],
+    origin: true,
   });
   fastify.register(auth);
 
