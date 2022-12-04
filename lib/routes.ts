@@ -65,7 +65,10 @@ export default async (fastify: FastifyInstance): Promise<void> => {
   typed.put('/objects', {
     schema: {
       body: Type.Array(
-        Type.Object({ id: Type.String(), data: Type.Unknown() })
+        Type.Object({
+          id: Type.String(),
+          data: Type.Record(Type.String(), Type.Unknown()),
+        })
       ),
       response: {
         201: Type.Object({ modifiedAt: Type.Number() }),
