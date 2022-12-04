@@ -4,6 +4,7 @@ import FastifyRateLimit from '@fastify/rate-limit';
 import FastifyCORS from '@fastify/cors';
 
 import { Database } from './lib/db.js';
+import { HOUR } from './lib/constants.js';
 import routes from './lib/routes.js';
 
 declare module 'fastify' {
@@ -19,6 +20,14 @@ const fastify = Fastify({
 });
 
 const db = new Database();
+
+setInterval(async () => {
+  try {
+    await db.deleteStaleAuthTokens();
+  } catch (error) {
+    console.error('Failed to delete stale auth tokens', error);
+  }
+}, HOUR);
 
 process.on('SIGINT', () => {
   db.close();

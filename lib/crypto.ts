@@ -6,11 +6,15 @@ import {
 import { promisify } from 'util';
 
 import {
+  AUTH_TOKEN_ID_LEN,
+  AUTH_TOKEN_LEN,
+  AUTH_TOKEN_EXPIRY,
   PBKDF2_SALT_LEN,
   PBKDF2_ITERATIONS,
   PBKDF2_OUTPUT_LEN,
   PBKDF2_HASH_ALGO,
 } from './config.js';
+import type { User, AuthToken } from './db.js';
 
 export type HashedPassword = Readonly<{
   salt: Buffer;
@@ -50,4 +54,20 @@ export async function checkPasswordHash({
   );
 
   return timingSafeEqual(expectedHash, actualHash);
+}
+
+export function createAuthToken(user: User): AuthToken {
+  return {
+    id: randomBytes(AUTH_TOKEN_ID_LEN),
+    owner: user.username,
+    token: randomBytes(AUTH_TOKEN_LEN),
+    expiresAt: Date.now() + AUTH_TOKEN_EXPIRY,
+  };
+}
+
+export function checkAuthToken(
+  { token: expected }: AuthToken,
+  actual: Buffer,
+): boolean {
+  return timingSafeEqual(expected, actual);
 }

@@ -1,13 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 import FastifyPlugin from 'fastify-plugin';
 
-import { checkPasswordHash } from '../crypto.js';
-import { type User } from '../db.js';
+import { checkPasswordHash, checkAuthToken } from '../crypto.js';
+import { type User, type AuthToken } from '../db.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
     user: User;
   }
+}
+
+export function encodeAuthToken({ id, token }: AuthToken): string {
+  return `${id}:${token.toString('base64')}`;
 }
 
 async function auth(fastify: FastifyInstance): Promise<void> {
@@ -21,25 +25,41 @@ async function auth(fastify: FastifyInstance): Promise<void> {
       'Missing Authorization header',
     );
 
-    const [basic, base64] = authorization.split(/\s+/g, 2);
-    fastify.assert(
-      basic.toLowerCase() === 'basic',
-      400,
-      'Invalid Authorization header',
-    );
+    const [type, data] = authorization.toLowerCase().split(/\s+/g, 2);
 
     let isValid = false;
     let user: User | undefined;
+
     try {
-      const [username, password] =
-        Buffer.from(base64, 'base64').toString().split(':', 2);
+      if (type === 'basic') {
+        const [username, password] =
+          Buffer.from(data, 'base64').toString().split(':', 2);
 
-      user = await fastify.db.getUser(username);
-      if (!user) {
-        return reply.forbidden('Incorrect password');
+        user = await fastify.db.getUser(username);
+        if (!user) {
+          return reply.forbidden('Incorrect password');
+        }
+
+        isValid = await checkPasswordHash(user, password);
+      } else if (type === 'bearer') {
+        const [tokenId, tokenData] = data.split(':', 2);
+        const token = await fastify.db.getAuthToken(
+          Buffer.from(tokenId, 'base64'),
+        );
+        if (!token) {
+          return reply.forbidden('Incorrect token');
+        }
+
+        user = await fastify.db.getUser(token.owner);
+        if (!user) {
+          return reply.forbidden('Incorrect password');
+        }
+
+        isValid = await checkAuthToken(token, Buffer.from(tokenData, 'base64'));
+      } else {
+        fastify.assert(400, 'Invalid authorization type');
+        return;
       }
-
-      isValid = await checkPasswordHash(user, password);
     } catch (error) {
       return reply.badRequest('Bad input');
     }

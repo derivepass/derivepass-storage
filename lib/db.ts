@@ -1,6 +1,5 @@
 import NativeConstructor from 'better-sqlite3';
 import type { Database as Native, Statement } from 'better-sqlite3';
-import { pbkdf2 } from 'crypto';
 
 import { DB_PATH } from './config.js';
 
@@ -18,6 +17,13 @@ export type StoredObject = Readonly<{
   data: string;
 }>;
 
+export type AuthToken = Readonly<{
+  owner: string;
+  id: Buffer;
+  token: Buffer;
+  expiresAt: number;
+}>;
+
 export type GetObjectOptions = Readonly<{
   owner: string;
   id: string;
@@ -31,6 +37,10 @@ export class Database {
   private readonly saveObjectStmt: Statement;
   private readonly getObjectStmt: Statement;
   private readonly getObjectsByOwnerStmt: Statement;
+  private readonly saveAuthTokenStmt: Statement;
+  private readonly getAuthTokenStmt: Statement;
+  private readonly deleteAuthTokenStmt: Statement;
+  private readonly deleteStaleAuthTokensStmt: Statement;
 
   constructor(path = DB_PATH) {
     const db = new NativeConstructor(path);
@@ -74,6 +84,25 @@ export class Database {
     this.getObjectsByOwnerStmt = db.prepare(`
       SELECT * FROM objects WHERE owner IS $owner
     `);
+
+    this.saveAuthTokenStmt = db.prepare(`
+      INSERT OR REPLACE INTO authTokens
+      (id, owner, token, expiresAt)
+      VALUES
+      ($id, $owner, $token, $expiresAt)
+    `);
+
+    this.getAuthTokenStmt = db.prepare(`
+      SELECT * FROM authTokens WHERE id IS $id AND expiresAt < $now
+    `);
+
+    this.deleteAuthTokenStmt = db.prepare(`
+      DELETE FROM authTokens WHERE id IS $id AND owner IS $owner
+    `);
+
+    this.deleteStaleAuthTokensStmt = db.prepare(`
+      DELETE FROM authTokens WHERE expiresAt < $now
+    `);
   }
 
   public close(): void {
@@ -105,6 +134,22 @@ export class Database {
     return this.getObjectsByOwnerStmt.all({ owner });
   }
 
+  public async saveAuthToken(token: AuthToken): Promise<void> {
+    this.saveAuthTokenStmt.run(token);
+  }
+
+  public async getAuthToken(id: Buffer): Promise<AuthToken | undefined> {
+    return this.getAuthTokenStmt.get({ id, now: Date.now() });
+  }
+
+  public async deleteAuthToken(owner: User, id: Buffer): Promise<void> {
+    this.deleteAuthTokenStmt.run({ owner: owner.username, id });
+  }
+
+  public async deleteStaleAuthTokens(): Promise<void> {
+    return this.deleteStaleAuthTokensStmt.get({ now: Date.now() });
+  }
+
   //
   // Private
   //
@@ -129,6 +174,16 @@ export class Database {
         );
 
         CREATE INDEX object_by_owner ON objects (owner);
+
+        CREATE TABLE authTokens (
+          id BLOB NON NULL PRIMARY KEY,
+          owner STRING NON NULL REFERENCES users(username) ON DELETE CASCADE,
+          token BLOB NON NULL,
+          expiresAt INTEGER NON NULL
+        );
+
+        CREATE INDEX authToken_by_owner ON authTokens (owner);
+        CREATE INDEX authToken_by_expiresAt ON authTokens (expiresAt ASC);
       `);
     },
   ];
