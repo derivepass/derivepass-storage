@@ -208,7 +208,8 @@ export class Database {
           data STRING NON NULL,
           modifiedAt INTEGER NON NULL,
 
-          PRIMARY KEY (owner, id)
+          PRIMARY KEY (owner, id),
+          UNIQUE (owner, modifiedAt)
         );
 
         CREATE INDEX object_by_owner ON objects (owner);
