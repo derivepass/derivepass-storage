@@ -27,9 +27,6 @@ ExecStart=/usr/bin/node index.js
 WorkingDirectory=/var/www/derivepass/app
 Restart=always
 RestartSec=10
-StandardOutput=syslog
-StandardError=syslog
-SyslogIdentifier=derivepass
 Environment=NODE_ENV=production PORT=8000 DB_PATH=/var/www/derivepass/db.sqlite
 User=derivepass
 Group=derivepass
