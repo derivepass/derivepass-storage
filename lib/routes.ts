@@ -4,6 +4,7 @@ import { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 
 import { createAuthToken } from './crypto.js';
+import { DAY } from './constants.js';
 import auth, { encodeAuthToken, decodeAuthToken } from './plugins/auth.js';
 
 export default async (fastify: FastifyInstance): Promise<void> => {
@@ -11,6 +12,7 @@ export default async (fastify: FastifyInstance): Promise<void> => {
 
   typed.register(FastifyCORS, {
     origin: true,
+    maxAge: DAY,
   });
   typed.register(auth);
 
