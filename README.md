@@ -38,7 +38,7 @@ Group=derivepass
 WantedBy=multi-user.target
 ```
 
-...and build and start the servie
+Build and start the service;
 ```sh
 apt update
 apt install build-essential
@@ -56,7 +56,7 @@ systemctl enable derivepass.service
 systemctl start derivepass.service
 ```
 
-...verify that it runs with:
+Verify that it runs with:
 ```sh
 systemctl status derivepass.service
 ```
