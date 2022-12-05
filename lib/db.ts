@@ -184,7 +184,7 @@ export class Database {
   }
 
   public async deleteStaleAuthTokens(): Promise<void> {
-    return this.deleteStaleAuthTokensStmt.get({ now: Date.now() });
+    this.deleteStaleAuthTokensStmt.run({ now: Date.now() });
   }
 
   //
